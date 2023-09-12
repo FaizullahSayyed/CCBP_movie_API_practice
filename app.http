@@ -1,0 +1,33 @@
+GET http://localhost:3000/movies
+###API 1
+
+
+POST http://localhost:3000/movies
+Content-Type: application/json
+
+{
+    "directorId": 7,
+    "movieName": "Jawan",
+    "leadActor": "Shahrukh Khan"
+}
+###API2
+
+
+
+GET http://localhost:3000/movies/6
+###API3
+
+PUT http://localhost:3000/movies
+
+Content-Type: application/json
+
+{
+    "movieId": 2,
+    "directorId": 7,
+    "movieName": "Jawan",
+    "leadActor": "Shahrukh Khan"
+}
+###API4
+
+DELETE http://localhost:3000/movies/10
+###API5
