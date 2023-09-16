@@ -5,6 +5,7 @@ const { open } = require("sqlite");
 const nodemon = require("nodemon");
 
 const app = express();
+app.use(express.json());
 
 const dbPath = path.join(__dirname, "moviesData.db");
 
@@ -26,22 +27,27 @@ const initializeDBAndServer = async () => {
 
 initializeDBAndServer();
 
-app.use(express.json());
-
-const objConverterForAPI1 = (movieObj) => {
-  return {
-    movieName: movieObj.movie_name,
-  };
+const objConverter = (Obj) => {
+  if ("movie_id" in Obj) {
+    return {
+      movieId: Obj.movie_id,
+      directorId: Obj.director_id,
+      movieName: Obj.movie_name,
+      leadActor: Obj.lead_actor,
+    };
+  } else if ("movie_name" in Obj) {
+    return {
+      movieName: Obj.movie_name,
+    };
+  } else if ("director_name" in Obj) {
+    return {
+      directorId: Obj.director_id,
+      directorName: Obj.director_name,
+    };
+  }
 };
 
-const objConverterForAPI3 = (movieObj) => {
-  return {
-    movieId: movieObj.movie_id,
-    directorId: movieObj.director_id,
-    movieName: movieObj.movie_name,
-    leadActor: movieObj.lead_actor,
-  };
-};
+const objConverterForAPI3 = (movieObj) => {};
 
 //API 1
 app.get("/movies/", async (request, response) => {
@@ -50,7 +56,7 @@ app.get("/movies/", async (request, response) => {
         FROM movie;
     `;
   const moviesArray = await db.all(getAllPlayerQuery);
-  response.send(moviesArray.map((eachMovie) => objConverterForAPI1(eachMovie)));
+  response.send(moviesArray.map((eachMovie) => objConverter(eachMovie)));
 });
 
 //API 2
@@ -77,49 +83,93 @@ app.post("/movies/", async (request, response) => {
 
 //API 3
 app.get("/movies/:movieId/", async (request, response) => {
-  let movieId;
   try {
-    movieId = parseInt(request.params.movieId);
-
-    const getMovieQuery = `
-        SELECT *
-        FROM movie
-        WHERE movie_id = ${movieId};
+    const { movieId } = request.params;
+    const getMovieDetailsQuery = `
+        SELECT 
+            *
+        FROM 
+            movie
+        WHERE 
+            movie_id = ${movieId};
     `;
-    const movieDetails = await db.get(getMovieQuery);
-    response.send(objConverterForAPI3(movieDetails));
-    console.log(movieDetails);
+    const movieDetails = await db.get(getMovieDetailsQuery);
+    response.send(objConverter(movieDetails));
   } catch (error) {
-    console.log(request.params);
-    console.log("Error in API 3");
-    console.log(typeof movieId);
+    console.log(error);
   }
 });
 
 //API 4
 app.put("/movies/:movieId/", async (request, response) => {
-  const { movieId } = request.params;
-  const { directorId, movieName, leadActor } = request.body;
-  const updateMovieDetailsQuery = `
-        UPDATE movie
-        SET
-        director_id = "${directorId}",
-        movie_name = "${movieName}",
-        lead_actor = "${leadActor}",
-        WHERE movie_id = ${movieId}
+  try {
+    const { movieId } = request.params;
+    const { directorId, movieName, leadActor } = request.body;
+    // const updateMovieDetailsQuery = `
+    //     UPDATE
+    //         movie
+    //     SET
+    //         director_id = ${directorId},
+    //         movie_name = '${movieName}',
+    //         lead_actor = '${leadActor}',
+    //     WHERE
+    //         movie_id = ${movieId}
+    const updateMovieQuery = `
+            UPDATE 
+                movie
+            SET
+              director_id = ${directorId},
+              movie_name = '${movieName}',
+              lead_actor = '${leadActor}'
+            WHERE 
+                movie_id = ${movieId};
     `;
-  await db.run(updateMovieDetailsQuery);
-  response.send("Movie Details Updated");
+    await db.run(updateMovieQuery);
+    response.send("Movie Details Updated");
+  } catch (error) {
+    console.log("Error is in API 4");
+  }
 });
 
 //API 5
 app.delete("/movies/:movieId/", async (request, response) => {
   const { movieId } = request.params;
   const deleteMovieQuery = `
-        DELETE FROM movie
-        WHERE movie_id = '${movieId}';
+        DELETE 
+        FROM 
+            movie
+        WHERE 
+            movie_id = ${movieId};
     `;
+  await db.run(deleteMovieQuery);
   response.send("Movie Removed");
+});
+
+//API 6
+app.get("/directors/", async (request, response) => {
+  const getDirectorsDetailsQuery = `
+        SELECT
+            *
+        FROM
+            director;        
+    `;
+  const directorsArray = await db.all(getDirectorsDetailsQuery);
+  response.send(directorsArray.map((director) => objConverter(director)));
+});
+
+//API 7
+app.get("/directors/:directorId/movies/", async (request, response) => {
+  const { directorId } = request.params;
+  const getMoviesQuery = `
+        SELECT
+            movie_name
+        FROM
+            movie
+        WHERE
+            director_id = ${directorId};
+    `;
+  const moviesArray = await db.all(getMoviesQuery);
+  response.send(moviesArray.map((movie) => objConverter(movie)));
 });
 
 module.exports = app;
